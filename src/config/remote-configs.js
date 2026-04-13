@@ -1,6 +1,15 @@
 // 远程配置选项
 export const REMOTE_CONFIGS = [
   {
+    label: "璃の配置",
+    options: [
+      {
+        label: "ACL4SSR-Forked",
+        value: "https://raw.githubusercontent.com/ZureTz/ACL4SSR/refs/heads/master/Clash/config/ACL4SSR_Online_Full.ini"
+      }
+    ]
+  },
+  {
     label: "universal",
     options: [
       {
