@@ -1,11 +1,18 @@
-# ---- Dependencies ----
-FROM node:22-alpine AS build
-WORKDIR /app
-COPY . .
-RUN yarn install
-RUN yarn build
+FROM oven/bun:alpine AS builder
 
-FROM nginx:1.24-alpine
-COPY --from=build /app/dist /usr/share/nginx/html
+WORKDIR /app
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY . .
+
+RUN bun run build
+
+FROM nginx:alpine
+
+COPY --from=builder /app/build /usr/share/nginx/html
+
 EXPOSE 80
+
 CMD [ "nginx", "-g", "daemon off;" ]

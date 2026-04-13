@@ -37,47 +37,43 @@ docker run -d \
 
 ```bash
 # 克隆项目
-git clone https://github.com/CareyWang/sub-web.git
+git clone https://github.com/ZureTz/sub-web.git
 cd sub-web
 
 # 安装依赖
-yarn install
+bun install
 
 # 启动开发服务器
-yarn dev
+bun dev
 ```
 
 访问 <http://localhost:5173/> 查看应用。
 
 ## 📦 环境要求
 
-- **Node.js**: 22.x
-- **Yarn**: 1.22+
+- **Bun**: 1.0+
 - **Docker**: 20.10+ （可选，用于容器化部署）
 
 ### 验证安装
 
 ```bash
-# 检查 Node.js 版本
-node -v
-# 应输出: v22.x.x
 
-# 检查 Yarn 版本
-yarn -v
-# 应输出: 1.22.x
+# 检查 Bun 版本
+bun -v
+# 应输出: 1.3.x
 ```
 
 ## 🛠️ 安装
 
-### 使用 Yarn（推荐）
+### 使用 bun（推荐）
 
 ```bash
 # 克隆项目
-git clone https://github.com/CareyWang/sub-web.git
+git clone https://github.com/ZureTz/sub-web.git
 cd sub-web
 
 # 安装依赖
-yarn install
+bun install
 ```
 
 ### 环境配置
@@ -116,7 +112,7 @@ VITE_CACHE_TTL=86400
 
 ```bash
 # 启动开发服务器
-yarn dev
+bun dev
 ```
 
 访问 <http://localhost:5173/> 查看应用。
@@ -125,7 +121,7 @@ yarn dev
 
 ```bash
 # 构建生产版本
-yarn build
+bun run build
 ```
 
 构建完成后，`dist` 目录包含所有生产文件。
