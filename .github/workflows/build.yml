@@ -13,7 +13,7 @@ jobs:
       deployments: write
     name: Deploy to Cloudflare Pages
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           # If your repository depends on submodule, please see: https://github.com/actions/checkout
@@ -23,7 +23,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Cache Bun dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.OS }}-bun-cache-${{ hashFiles('bun.lock') }}
