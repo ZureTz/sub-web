@@ -1,42 +1,45 @@
-name: Build
+name: Pages
 
 on:
   push:
-    branches: [ master, dev ]
-  pull_request:
-    branches: [ master, dev ]
+    branches:
+      - master # default branch
 
 jobs:
-
-  build:
-    name: Build
+  deploy:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [22.x]
-
+    permissions:
+      contents: read
+      deployments: write
+    name: Deploy to Cloudflare Pages
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # If your repository depends on submodule, please see: https://github.com/actions/checkout
+          submodules: recursive
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'yarn'
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
-    - name: Install dependencies
-      run: yarn install --frozen-lockfile
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.OS }}-bun-cache-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.OS }}-bun-cache-
 
-    - name: Run linter
-      run: yarn lint
+      - name: Install Dependencies
+        run: bun install
 
-    - name: Build
-      run: yarn build
+      - name: Build
+        run: bun run build
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: dist-${{ matrix.node-version }}
-        path: dist/
-        retention-days: 7
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy ./public --project-name=sub-web
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
