@@ -31,7 +31,7 @@ jobs:
             ${{ runner.OS }}-bun-cache-
 
       - name: Install Dependencies
-        run: bun install
+        run: bun install --frozen-lockfile
 
       - name: Build
         run: bun run build
