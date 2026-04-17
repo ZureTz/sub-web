@@ -6,6 +6,10 @@ export const REMOTE_CONFIGS = [
       {
         label: "ACL4SSR-Forked",
         value: "https://raw.githubusercontent.com/ZureTz/ACL4SSR/refs/heads/master/Clash/config/ACL4SSR_Online_Full.ini"
+      },
+      {
+        label: "ACL4SSR-Forked-Google",
+        value: "https://raw.githubusercontent.com/ZureTz/ACL4SSR/refs/heads/master/Clash/config/ACL4SSR_Online_Full_Google.ini"
       }
     ]
   },
