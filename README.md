@@ -82,7 +82,7 @@ bun install
 
 ```env
 # Subconverter 后端地址
-VITE_SUBCONVERTER_DEFAULT_BACKEND=https://api.wcc.best
+VITE_SUBCONVERTER_DEFAULT_BACKEND=https://sub.trozure.uk
 
 # 项目与社区链接
 VITE_PROJECT=https://github.com/CareyWang/sub-web
