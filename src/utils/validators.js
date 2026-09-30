@@ -26,8 +26,17 @@ export const validateSubUrl = (url) => {
  * @returns {boolean} 验证结果
  */
 export const validateForm = (form) => {
-  if (form.sourceSubUrl === "" || form.clientType === "") {
+  if (!form.sourceSubUrl?.trim() || !form.clientType) {
     return false;
   }
   return true;
 };
+
+export const validateBackend = (value) => {
+  try {
+    const url = new URL(value)
+    return ['http:', 'https:'].includes(url.protocol) && !url.hash && !url.username && !url.password
+  } catch {
+    return false
+  }
+}

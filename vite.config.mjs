@@ -1,12 +1,14 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue2'
+import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 
 const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 
 export default defineConfig({
   plugins: [
-    vue()
+    vue(),
+    tailwindcss()
   ],
   resolve: {
     alias: {

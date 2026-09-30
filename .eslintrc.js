@@ -1,10 +1,12 @@
 module.exports = {
   root: true,
   env: {
-    node: true
+    node: true,
+    browser: true,
+    es2022: true
   },
   'extends': [
-    'plugin:vue/essential',
+    'plugin:vue/vue3-essential',
     'eslint:recommended'
   ],
   rules: {

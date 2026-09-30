@@ -1,7 +1,8 @@
+import { CONSTANTS } from '@/config/constants'
 import { setLocalStorageItem } from '@/utils/storage';
 
 /**
- * 订阅表单状态管理 - 为Vue 2 Options API设计
+ * 订阅表单状态管理 - Options API 数据工厂
  */
 export function useSubscriptionForm() {
   // 返回响应式数据和方法的集合
@@ -69,8 +70,8 @@ export function addCustomParam(customParams) {
  * @param {Object} form - 表单对象
  */
 export function saveSubUrl(form) {
-  if (form && form.sourceSubUrl !== '') {
-    const ttl = Number(import.meta.env.VITE_CACHE_TTL) || 3600;
+  if (CONSTANTS.USE_STORAGE && form && form.sourceSubUrl.trim()) {
+    const ttl = CONSTANTS.CACHE_TTL;
     setLocalStorageItem('sourceSubUrl', form.sourceSubUrl, ttl);
   }
 }

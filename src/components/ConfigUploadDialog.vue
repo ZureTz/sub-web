@@ -1,84 +1,42 @@
 <template>
-  <el-dialog
-    :visible.sync="localVisible"
-    :show-close="false"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
-    width="700px"
-  >
-    <div slot="title">
-      Remote config upload
-      <el-popover trigger="hover" placement="right" style="margin-left: 10px">
-        <el-link type="primary" :href="sampleConfig" target="_blank" icon="el-icon-info">参考配置</el-link>
-        <i class="el-icon-question" slot="reference"></i>
-      </el-popover>
-    </div>
-
-    <el-form label-position="left">
-      <el-form-item prop="uploadConfig">
-        <el-input
-          v-model="localUploadConfig"
-          type="textarea"
-          :autosize="{ minRows: 15, maxRows: 30 }"
-          maxlength="10000"
-          show-word-limit
-        />
-      </el-form-item>
-    </el-form>
-
-    <div slot="footer" class="dialog-footer">
-      <el-button @click="handleCancel">取 消</el-button>
-      <el-button type="primary" @click="handleConfirm" :disabled="localUploadConfig.length === 0">
-        确 定
-      </el-button>
-    </div>
-  </el-dialog>
+  <UiDialog :open="visible" @update:open="handleOpenChange">
+    <DialogContent :show-close-button="!loading" class="sm:max-w-xl" @escape-key-down="guardClose" @pointer-down-outside="guardClose">
+      <DialogHeader>
+        <DialogTitle class="flex items-center gap-2"><Upload class="size-5 text-primary" />上传远程配置</DialogTitle>
+        <DialogDescription>粘贴配置内容，上传后自动填入远程配置。托管链接有效期为三个月。</DialogDescription>
+      </DialogHeader>
+      <form class="space-y-4" @submit.prevent="handleConfirm">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between"><UiLabel for="upload-content">配置内容</UiLabel><a :href="sampleConfig" target="_blank" rel="noopener noreferrer" class="text-xs text-primary">参考配置 ↗</a></div>
+          <UiTextarea id="upload-content" v-model="content" :disabled="loading" rows="12" maxlength="10000" class="max-h-[45vh] font-mono text-xs leading-relaxed" placeholder="[custom]&#10;ruleset=…&#10;custom_proxy_group=…" spellcheck="false" />
+          <p class="text-right text-xs text-muted-foreground">{{ content.length }} / 10,000</p>
+        </div>
+        <p v-if="error" role="alert" class="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{{ error }}</p>
+        <DialogFooter><UiButton type="button" variant="outline" :disabled="loading" @click="$emit('cancel')">取消</UiButton><UiButton type="submit" :disabled="!content.trim() || loading"><LoaderCircle v-if="loading" class="size-4 animate-spin" /><Upload v-else class="size-4" />{{ loading ? '正在上传…' : '上传并应用' }}</UiButton></DialogFooter>
+      </form>
+    </DialogContent>
+  </UiDialog>
 </template>
 
 <script>
-import { CONSTANTS } from '@/config/constants';
+import { LoaderCircle, Upload } from '@lucide/vue'
+import { CONSTANTS } from '@/config/constants'
+import { Button as UiButton } from '@/components/ui/button'
+import { Textarea as UiTextarea } from '@/components/ui/textarea'
+import { Label as UiLabel } from '@/components/ui/label'
+import { Dialog as UiDialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 export default {
   name: 'ConfigUploadDialog',
-  props: {
-    visible: {
-      type: Boolean,
-      default: false
-    },
-    uploadConfig: {
-      type: String,
-      default: ''
-    },
-    loading: {
-      type: Boolean,
-      default: false
-    }
-  },
-  data() {
-    return {
-      sampleConfig: CONSTANTS.REMOTE_CONFIG_SAMPLE,
-      localUploadConfig: this.uploadConfig,
-      localVisible: this.visible
-    };
-  },
-  watch: {
-    uploadConfig(newVal) {
-      this.localUploadConfig = newVal;
-    },
-    visible(newVal) {
-      this.localVisible = newVal;
-    },
-    localVisible(newVal) {
-      this.$emit('update:visible', newVal);
-    }
-  },
+  components: { LoaderCircle, Upload, UiButton, UiTextarea, UiLabel, UiDialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle },
+  props: { visible: Boolean, loading: Boolean, error: { type: String, default: '' } },
+  emits: ['cancel', 'confirm'],
+  data() { return { content: '', sampleConfig: CONSTANTS.REMOTE_CONFIG_SAMPLE } },
+  watch: { visible(value) { if (!value) this.content = '' } },
   methods: {
-    handleCancel() {
-      this.$emit('cancel');
-    },
-    handleConfirm() {
-      this.$emit('confirm', this.localUploadConfig);
-    }
+    guardClose(event) { if (this.loading) event.preventDefault() },
+    handleOpenChange(open) { if (!open && !this.loading) this.$emit('cancel') },
+    handleConfirm() { if (this.content.trim() && !this.loading) this.$emit('confirm', this.content) }
   }
-};
+}
 </script>

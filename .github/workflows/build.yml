@@ -1,45 +1,100 @@
-name: Pages
+name: CI and Pages
 
 on:
   push:
-    branches:
-      - master # default branch
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  deploy:
+  checks:
+    name: Static checks, tests and build
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
-    name: Deploy to Cloudflare Pages
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          # If your repository depends on submodule, please see: https://github.com/actions/checkout
           submodules: recursive
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Setup Bun
+        id: bun
         uses: oven-sh/setup-bun@v2
 
       - name: Cache Bun dependencies
         uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.OS }}-bun-cache-${{ hashFiles('bun.lock') }}
+          key: ${{ runner.os }}-bun-${{ steps.bun.outputs.bun-version }}-${{ hashFiles('bun.lock') }}
           restore-keys: |
-            ${{ runner.OS }}-bun-cache-
+            ${{ runner.os }}-bun-${{ steps.bun.outputs.bun-version }}-
 
-      - name: Install Dependencies
+      - name: Install locked dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build
+      - name: Static checks
+        run: bun run lint
+        env:
+          NODE_ENV: production
+
+      - name: Regression tests
+        run: bun run test
+
+      - name: Production build
         run: bun run build
+
+      - name: Upload checked build
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Download checked build
+        uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: bun
           command: pages deploy ./dist --project-name=sub-web
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}

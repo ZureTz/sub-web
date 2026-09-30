@@ -9,6 +9,6 @@ export const CONSTANTS = {
   CONFIG_UPLOAD_API: import.meta.env.VITE_CONFIG_UPLOAD_API,
   BOT_LINK: import.meta.env.VITE_BOT_LINK,
   DEFAULT_CLIENT_TYPE: 'clash',
-  BUTTON_WIDTH: '140px',
-  LARGE_BUTTON_WIDTH: '290px'
+  USE_STORAGE: import.meta.env.VITE_USE_STORAGE === 'true',
+  CACHE_TTL: Number(import.meta.env.VITE_CACHE_TTL) || 3600
 };

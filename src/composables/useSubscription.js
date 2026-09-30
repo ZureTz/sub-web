@@ -12,7 +12,9 @@ export function useSubscription() {
    * @returns {string} 基础URL
    */
   const buildBaseUrl = (form, processedSubUrl, currentBackend) => {
-    return currentBackend +
+    const backend = new URL(currentBackend)
+    const separator = backend.search ? '&' : '?'
+    return backend.href.replace(/\?$/, '') + separator +
       "target=" + form.clientType +
       "&url=" + encodeURIComponent(processedSubUrl) +
       "&insert=" + form.insert;

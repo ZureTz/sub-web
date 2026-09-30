@@ -1,19 +1,21 @@
 # sub-web
 
-![Vue](https://img.shields.io/badge/Vue-2.7.x-brightgreen.svg)
+![Vue](https://img.shields.io/badge/Vue-3.5.x-brightgreen.svg)
 ![Vite](https://img.shields.io/badge/Vite-8.x-646CFF.svg)
+![Bun](https://img.shields.io/badge/Bun-1.4.2-f9f1e1.svg)
 ![Node](https://img.shields.io/badge/Node-24.x-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)
 
-基于 Vue.js 2.7 与 [tindy2013/subconverter](https://github.com/tindy2013/subconverter) 后端实现的订阅配置自动生成 Web 界面。
+基于 Vue.js 3 与 [tindy2013/subconverter](https://github.com/tindy2013/subconverter) 后端实现的订阅配置自动生成 Web 界面。
 
 ## ✨ 特性
 
-- 基于 Vue 2.7 + Element UI 的现代化界面
+- 基于 Vue 3 + shadcn-vue + Tailwind CSS 4 的现代化界面
 - Vite 8 构建，热重载开发体验
 - 模块化架构：composables / services / utils / config 分层
-- SVG 图标精灵（vite-plugin-svg-icons）
+- Lucide 图标、深浅主题、响应式双栏布局
+- 基础 / 进阶模式，16 种客户端与可折叠高级参数
 - 本地存储缓存，TTL 可配置
 - 短链接与配置文件上传集成
 - 一键导入 Clash
@@ -38,26 +40,27 @@ docker run -d \
 ```bash
 git clone https://github.com/CareyWang/sub-web.git
 cd sub-web
-yarn install
-yarn dev
+bun install
+bun run dev
 ```
 
 访问 <http://localhost:5173/>
 
 ## 📦 环境要求
 
-- **Node.js**: 24.x
-- **Yarn**: 1.22+
+- **Node.js**: 24.x（工具链及 Node 内置测试运行器）
+- **Bun**: 1.4.2（包管理，版本固定于 `package.json`）
 - **Docker**: 20.10+（可选）
 
 ## 🛠️ 常用命令
 
 | 命令 | 说明 |
 |------|------|
-| `yarn dev` | 启动开发服务器 |
-| `yarn build` | 构建生产版本 |
-| `yarn preview` | 本地预览构建产物 |
-| `yarn lint` | ESLint 代码检查 |
+| `bun run dev` | 启动开发服务器 |
+| `bun run build` | 构建生产版本 |
+| `bun run preview` | 本地预览构建产物 |
+| `bun run lint` | ESLint 代码检查 |
+| `bun run test` | Node 内置测试：订阅生成、解析与服务契约 |
 
 ## ⚙️ 环境配置
 
@@ -92,28 +95,56 @@ VITE_CACHE_TTL=86400
 如果部署在子路径（如 `/sub-web/`），在构建时指定 base：
 
 ```bash
-yarn build --base=/sub-web/
+bun run build --base=/sub-web/
 ```
 
-或在 `vite.config.js` 中设置 `base: '/sub-web/'`。
+或在 `vite.config.mjs` 中设置 `base: '/sub-web/'`。
 
 ## 📁 目录结构
 
 ```
 src/
-├── main.js              # 应用入口，插件注册
+├── main.js              # Vue 3 createApp 入口
 ├── App.vue
 ├── router/              # Vue Router（history 模式）
 ├── views/
 │   └── Subconverter.vue # 主页面
-├── components/          # 可复用组件（弹窗等）
+├── components/          # 业务弹窗、ui/ 下的 shadcn-vue 组件
 ├── composables/         # 共享逻辑（表单、订阅、URL 解析）
 ├── services/            # API 封装（后端版本、短链接、配置上传）
 ├── config/              # 常量、客户端类型、远程配置列表
 ├── utils/               # 工具函数（storage、validators、formatters）
-├── plugins/             # Vue 插件注册（Element UI、Axios 等）
-└── icons/svg/           # SVG 精灵图源文件
+├── assets/main.css      # Tailwind、主题变量与全局样式
+└── lib/utils.js         # shadcn-vue class 合并工具
 ```
+
+## UI 组件与验证
+
+[shadcn-vue](https://www.shadcn-vue.com/docs/installation/vite) 组件源码位于 `src/components/ui/`，使用官方 `new-york` 风格的 JavaScript 版本。配置见 `components.json`，主题颜色在 `src/assets/main.css` 中维护。业务页面保留 Options API，基础组件保留官方生成的 `script setup`。
+
+```bash
+bunx shadcn-vue@2.8.2 add <component>
+bun run lint
+bun run test
+bun run build
+# 运行单个回归场景
+node --test --test-name-pattern="advanced parameters" tests/subscriptions.test.mjs
+```
+
+本地开发、CI 和 Docker 统一使用 Bun，仅维护 `bun.lock`。修改依赖后运行 `bun install` 并提交锁文件；CI 使用 `bun install --frozen-lockfile`。升级 Bun 时同步修改 `package.json` 的 `packageManager` / `engines.bun` 和 Docker 基础镜像版本。
+
+短链接、上传和短链解析依赖所配置的外部服务。Vite 不自带 `/api/short` 接口，本地调试可在 `.env.local` 中将 `VITE_MYURLS_API` 指向支持跨域的服务；生产环境也可以使用原有反向代理。
+
+## CI 检查
+
+`.github/workflows/build.yml` 在 push 到 `master` 和面向 `master` 的 Pull Request 上运行：
+
+1. 使用 Node 24 和 `package.json` 指定的 Bun 版本安装锁定依赖。
+2. 运行生产规则下的 ESLint（覆盖页面、服务、Cloudflare Functions、测试及 Vite 配置，零警告）。
+3. 运行订阅回归测试和生产构建，保存 `dist` 构建产物 7 天。
+4. 仅当 `master` push 的检查通过时，将同一份构建产物部署到 Cloudflare Pages；PR 只检查，不部署。
+
+Docker 镜像继续由现有的 `docker-build-push.yml` 工作流在 `master` push 后构建。
 
 ## 🐳 Docker 部署
 

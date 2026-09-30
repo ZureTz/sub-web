@@ -1,30 +1,33 @@
 # AGENTS GUIDE
 
-Vue 2.7 + Vite 8 SPA with Element UI. Keep changes small, follow existing patterns, avoid refactors during fixes.
+Vue 3 + Vite 8 SPA with shadcn-vue and Tailwind CSS 4. Keep changes small, follow existing patterns, avoid refactors during fixes.
 
 ## Quick Facts
 
-- Framework: Vue 2.7 (Options API)
+- Framework: Vue 3.5 (Options API for application components)
 - Build tool: Vite 8
-- UI: Element UI 2
-- Router: Vue Router 3 (history mode, base from `import.meta.env.BASE_URL`)
-- Node: 24.x
-- No automated tests currently
+- UI: shadcn-vue (Reka UI primitives)
+- Router: Vue Router 4 (history mode, base from `import.meta.env.BASE_URL`)
+- Package manager: Bun 1.4.2 (pinned by `packageManager` in `package.json`)
+- Node: 24.x (toolchain and Node test runner)
+- Node built-in test runner; regression coverage in `tests/subscriptions.test.mjs`
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `yarn install` | Install dependencies |
-| `yarn dev` | Start dev server (host: 0.0.0.0) |
-| `yarn build` | Production build |
-| `yarn preview` | Preview production build locally |
-| `yarn lint` | ESLint check |
+| `bun install` | Install dependencies |
+| `bun run dev` | Start dev server (host: 0.0.0.0) |
+| `bun run build` | Production build |
+| `bun run preview` | Preview production build locally |
+| `bun run lint` | ESLint check (src, functions, tests and Vite config; zero warnings) |
+| `bun run test` | Subscription and service regression tests |
 
 ## CI / Workflows
 
-- **build.yml**: triggers on push/PR to `master` and `dev` — runs `yarn install --frozen-lockfile` + `yarn lint` + `yarn build`, then uploads `dist/` as artifact (7-day retention)
-- **docker-build-push.yml**: triggers on push to `master` — builds and pushes multi-arch image (`linux/amd64`, `linux/arm64`) to `careywong/subweb:latest`
+- **build.yml**: push / PR to `master` — Node 24 + pinned Bun frozen install, production ESLint, tests, build and 7-day artifact. A separate Pages deployment job depends on checks and only runs for a push to `master`.
+- **docker-build-push.yml**: builds and publishes the Docker image on push to `master`.
+- Use Bun everywhere and commit only `bun.lock`. Run `bun install` after dependency changes. Keep the Bun version in `package.json` and `Dockerfile` aligned.
 
 ## Repository Layout
 
@@ -37,7 +40,8 @@ src/
 ├── components/
 │   ├── ConfigUploadDialog.vue   # Config upload dialog
 │   ├── UrlParseDialog.vue       # URL parse dialog
-│   └── SvgIcon/index.vue        # SVG icon wrapper component
+│   ├── GithubIcon.vue          # Local brand icon
+│   └── ui/                     # Official shadcn-vue JavaScript components
 ├── composables/
 │   ├── useSubscription.js       # URL building logic (makeUrl, buildBaseUrl, buildAdvancedParams)
 │   ├── useSubscriptionForm.js   # Reactive form state + addCustomParam + saveSubUrl
@@ -45,7 +49,7 @@ src/
 ├── services/
 │   ├── backendService.js        # BackendService.getBackendVersion()
 │   ├── shortUrlService.js       # ShortUrlService.generateShortUrl()
-│   └── configUploadService.js   # ConfigUploadService.uploadConfig(), handleUploadSuccess()
+│   └── configUploadService.js   # ConfigUploadService.uploadConfig()
 ├── config/
 │   ├── constants.js             # CONSTANTS (env-backed, DEFAULT_CLIENT_TYPE='clash')
 │   ├── client-types.js          # CLIENT_TYPES map (display label → target value)
@@ -55,10 +59,8 @@ src/
 │   ├── validators.js            # validateSubUrl → { valid, message } | validateForm → boolean
 │   ├── formatters.js            # formatVersion, formatErrorMessage, processSubUrl
 │   └── search.js                # Backend autocomplete search helper
-├── plugins/                     # Vue plugin registrations (element-ui, clipboard, axios, device)
-└── icons/
-    ├── index.js                 # Registers SVG sprite
-    └── svg/                     # SVG source files (e.g., github.svg)
+├── assets/main.css              # Tailwind and light/dark theme variables
+└── lib/utils.js                 # shadcn-vue class name helper
 services/                        # Docker Compose stack (subweb + myurls + redis)
 ```
 
@@ -77,11 +79,11 @@ Returns plain object merged into `data()` via spread. Form fields include: `sour
 `makeUrl(form, advanced, processedSubUrl, currentBackend, customParams, needUdp)` — returns empty string on validation failure, otherwise builds full query string. Advanced mode adds remote config, include/exclude, filename, UDP, template, and custom params.
 
 ### `src/composables/useUrlParser.js`
-`analyzeUrl(url)` — if URL contains `"target"`, returns as-is; otherwise fetches and returns `response.url` (short-link expansion, requires CORS on short-link service).  
+`analyzeUrl(url)` — delegates HTTP(S) validation and short-link resolution to `UrlResolveService`; direct links must contain the `target` query parameter. Short links require CORS support.
 `parseUrl(url, form, customParams, onSuccess, onError)` — parses all query params back into form fields; unknown params become `customParams` entries.
 
 ### `src/services/`
-All service classes are static methods. They take `$axios` as first argument (injected via plugin). Silent failures are acceptable for `getBackendVersion`. Upload response shape: `{ code: 0, data: { url }, msg }`. Short URL response shape: `{ Code: 1, ShortUrl, Message }`.
+Service classes use static methods. HTTP services take the shared `http` instance from `src/services/http.js` as the first argument. Silent failures are acceptable for `getBackendVersion`. Upload response shape: `{ code: 0, data: { url }, msg }`. Short URL response shape: `{ Code: 1, ShortUrl, Message }`.
 
 ### `src/utils/storage.js`
 TTL stored inside the JSON value as `{ setTime, ttl, expire, value }`. `expire` checked on every read; expired entries are removed automatically. TTL value comes from `VITE_CACHE_TTL` env var.
@@ -93,19 +95,19 @@ TTL stored inside the JSON value as `{ setTime, ttl, expire, value }`. `expire` 
 - Semicolons: none (`semi: 0`)
 - Vue component names: single-word allowed (`vue/multi-word-component-names: off`)
 - `no-console` / `no-debugger`: error in production, off in dev
-- ESLint extends: `plugin:vue/essential`, `eslint:recommended`
+- ESLint extends: `plugin:vue/vue3-essential`, `eslint:recommended`
 - Parser: `@babel/eslint-parser` with `requireConfigFile: false`
 
 ## Imports & Modules
 
 - ES modules (`import`/`export`) throughout
-- Absolute alias `@` maps to `src/` (see `vite.config.js`)
+- Absolute alias `@` maps to `src/` (see `vite.config.mjs`)
 - Import order: core libs → local config/utils → services → components
 - Dynamic imports only for route lazy-load
 
 ## Vue Patterns
 
-- Options API everywhere; do not introduce Composition API
+- Keep application components in Options API. Official shadcn-vue components under `src/components/ui/` retain generated `script setup` code.
 - Component structure: `<template>`, `<script>`, `<style>`
 - Reactive state in `data()`; derived state in `computed`
 - Composables spread via `...useSubscription()` / `...useUrlParser()` in `methods`
@@ -113,9 +115,8 @@ TTL stored inside the JSON value as `{ setTime, ttl, expire, value }`. `expire` 
 
 ## Icons
 
-- SVG sprites via `vite-plugin-svg-icons`; icon dirs: `src/icons/svg`
-- Usage: `<svg-icon icon-class="name" />`
-- Symbol ID format: `icon-[name]`
+- Use named imports from `@lucide/vue` for interface icons.
+- The GitHub brand icon is kept locally in `src/components/GithubIcon.vue`.
 
 ## Environment Variables
 
@@ -131,14 +132,14 @@ TTL stored inside the JSON value as `{ setTime, ttl, expire, value }`. `expire` 
 
 ## Error Handling
 
-- UI errors via `this.$message.*` or `this.$notify`
+- UI feedback via the page `notify(text, type)` method; errors use an accessible alert.
 - Silent failures acceptable only when UX demands it (e.g., backend version fetch)
 - Use `formatErrorMessage` from `src/utils/formatters.js` for consistent error strings
 
 ## Docker
 
-- Base images: `node:24-alpine` (build), `nginx:1.24-alpine` (runtime)
-- Build: `yarn install && yarn build`, output copied to `/usr/share/nginx/html`
+- Base images: `oven/bun:1.4.2-alpine` (build), `nginx:alpine` (runtime)
+- Build: `bun install --frozen-lockfile && bun run build`, output copied to `/usr/share/nginx/html`
 - Services compose stack in `services/` includes myurls + Redis
 
 ## Git Hygiene
@@ -149,7 +150,7 @@ TTL stored inside the JSON value as `{ setTime, ttl, expire, value }`. `expire` 
 ## Frontend Safety
 
 - Avoid inline styles unless already present in nearby code
-- Prefer Element UI components and existing patterns
+- Prefer the local shadcn-vue components; alias HTML-reserved names (e.g. `Button as UiButton`) in Options API components.
 - Keep UI message strings consistent (mostly Chinese)
 
 ## Performance
@@ -187,13 +188,14 @@ data() {
 
 ## Suggested Manual Checks
 
-- `yarn lint`
-- `yarn build`
-- Run `yarn dev` and smoke the main screen
+- `bun run lint`
+- `bun run test`
+- `bun run build`
+- Run `bun run dev` and smoke the main screen
 
 ## Notes for Agents
 
 - Follow existing patterns; minimise scope
 - No large refactors unless explicitly requested
 - Do not introduce TypeScript or new tooling without approval
-- No test runner configured; if added, document the single-test command here
+- Tests use Node’s built-in runner with Vite module loading. Single case: `node --test --test-name-pattern="advanced parameters" tests/subscriptions.test.mjs`.
