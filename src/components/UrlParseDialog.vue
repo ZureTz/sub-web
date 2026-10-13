@@ -5,8 +5,8 @@
         <DialogTitle class="flex items-center gap-2"><Link2 class="size-5 text-primary" />从 URL 恢复配置</DialogTitle>
         <DialogDescription>粘贴已生成的 Subconverter 长链接或短链接，自动还原订阅和转换参数。</DialogDescription>
       </DialogHeader>
-      <form class="space-y-5" @submit.prevent="handleConfirm">
-        <div class="space-y-2"><UiLabel for="parse-url">订阅转换链接</UiLabel><UiTextarea id="parse-url" v-model="url" :disabled="loading" rows="4" placeholder="https://example.com/sub?target=clash&amp;url=…" spellcheck="false" class="text-sm" /></div>
+      <form class="min-w-0 space-y-5" @submit.prevent="handleConfirm">
+        <div class="space-y-2"><UiLabel for="parse-url">订阅转换链接</UiLabel><UiTextarea id="parse-url" v-model="url" :disabled="loading" rows="4" placeholder="https://example.com/sub?target=clash&amp;url=…" spellcheck="false" class="field-sizing-fixed resize-y text-sm" /></div>
         <p class="rounded-lg bg-muted p-3 text-xs leading-relaxed text-muted-foreground">解析成功后会替换当前表单。短链接解析需要对应服务支持跨域访问。</p>
         <p v-if="error" role="alert" class="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{{ error }}</p>
         <DialogFooter><UiButton type="button" variant="outline" :disabled="loading" @click="$emit('cancel')">取消</UiButton><UiButton type="submit" :disabled="!url.trim() || loading"><LoaderCircle v-if="loading" class="size-4 animate-spin" /><ArrowRight v-else class="size-4" />{{ loading ? '正在解析…' : '解析并填入' }}</UiButton></DialogFooter>
