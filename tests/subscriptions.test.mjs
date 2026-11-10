@@ -13,6 +13,8 @@ const { validateBackend } = await server.ssrLoadModule('/src/utils/validators.js
 const { ShortUrlService } = await server.ssrLoadModule('/src/services/shortUrlService.js')
 const { ConfigUploadService } = await server.ssrLoadModule('/src/services/configUploadService.js')
 const { UrlResolveService } = await server.ssrLoadModule('/src/services/urlResolveService.js')
+const { CONSTANTS } = await server.ssrLoadModule('/src/config/constants.js')
+const { onRequest: resolveShortUrl } = await server.ssrLoadModule('/functions/api/resolve.js')
 const { getLocalStorageItem, setLocalStorageItem } = await server.ssrLoadModule('/src/utils/storage.js')
 const { makeUrl } = useSubscription()
 const { parseUrl } = useUrlParser()
@@ -121,17 +123,72 @@ test('config upload keeps existing request/response contract', async () => {
   assert.equal(response.data.url, 'https://config.example/demo.ini')
 })
 
-test('short-link resolver follows redirects and reports network failure', async () => {
-  const originalFetch = globalThis.fetch
-  try {
-    globalThis.fetch = async (_url, options) => {
-      assert.equal(options.redirect, 'follow')
-      return { ok: true, url: `${backend}target=clash&url=https%3A%2F%2Fexample.com` }
+test('short links restore all conversion settings through the same-origin Pages function', async t => {
+  const form = newForm('surge&ver=4')
+  Object.assign(form, { filename: '短链恢复', remoteConfig: 'https://example.com/config.ini', udp: true, emoji: false })
+  const extras = [{ name: 'rename', value: '香港@HK' }]
+  const longUrl = makeUrl(form, '2', source, backend, extras, true)
+  const requests = []
+  const shortUrl = 'https://short.trozure.uk/demo'
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    requests.push(url)
+    if (url === CONSTANTS.URL_RESOLVE_API) {
+      assert.equal(options.method, 'POST')
+      assert.equal(options.headers['Content-Type'], 'application/json')
+      assert.deepEqual(JSON.parse(options.body), { url: shortUrl })
+      return resolveShortUrl({ request: new Request(`https://subweb.example${url}`, options) })
     }
-    assert.ok((await UrlResolveService.resolve('https://short.example/demo')).includes('target=clash'))
-    globalThis.fetch = async () => { throw new Error('offline') }
-    await assert.rejects(() => UrlResolveService.resolve('https://short.example/demo'), /跨域/)
-  } finally { globalThis.fetch = originalFetch }
+    assert.equal(url, shortUrl, 'never fetch the final conversion/subscription URL')
+    assert.equal(options.redirect, 'manual')
+    return new Response(null, { status: 302, headers: { Location: longUrl } })
+  })
+  const restored = newForm()
+  const restoredExtras = []
+  let needUdp
+  assert.equal(await parseUrl(` ${shortUrl} `, restored, restoredExtras, meta => { needUdp = meta.needUdp }, assert.fail), true)
+  assert.equal(makeUrl(restored, '2', processSubUrl(restored.sourceSubUrl), restored.customBackend, restoredExtras, needUdp), longUrl)
+  assert.deepEqual(requests, [CONSTANTS.URL_RESOLVE_API, shortUrl])
+})
+
+test('direct converter URLs stay local without calling the resolver', async t => {
+  t.mock.method(globalThis, 'fetch', async () => assert.fail('direct links must not make requests'))
+  const url = makeUrl(newForm(), '1', source, backend, [], false)
+  assert.equal(await UrlResolveService.resolve(url), url)
+})
+
+test('short-link errors and invalid responses leave the existing form untouched', async t => {
+  const form = newForm()
+  const original = structuredClone(form)
+  const extras = [{ name: 'keep', value: 'yes' }]
+  const fetchMock = t.mock.method(globalThis, 'fetch')
+  for (const [response, expected] of [
+    [() => Response.json({ error: '短链接不存在或已过期' }, { status: 404 }), /过期/],
+    [() => Response.json({ error: '暂不支持此短链服务' }, { status: 403 }), /不支持/],
+    [() => new Response('<html>SPA fallback</html>', { headers: { 'Content-Type': 'text/html' } }), /接口不可用/],
+    [() => Response.json({}), /未返回有效链接/],
+    [() => Response.json({ url: 'javascript:alert(1)' }), /未指向有效/],
+    [() => Response.json({ url: 'https://example.com/' }), /未指向有效/],
+    [() => Response.json({ url: 'not a URL' }), /服务不可用/],
+    [() => new Response('{', { headers: { 'Content-Type': 'application/json' } }), /服务不可用/],
+    [() => { throw new TypeError('offline') }, /服务不可用/]
+  ]) {
+    fetchMock.mock.mockImplementation(async () => response())
+    let error
+    assert.equal(await parseUrl('https://short.trozure.uk/demo', form, extras, assert.fail, message => { error = message }), false)
+    assert.match(error, expected)
+    assert.deepEqual(form, original)
+    assert.deepEqual(extras, [{ name: 'keep', value: 'yes' }])
+  }
+})
+
+test('browser short-link requests time out with an actionable error', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  t.mock.method(globalThis, 'fetch', (_url, { signal }) => new Promise((_resolve, reject) => {
+    signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true })
+  }))
+  const pending = UrlResolveService.resolve('https://short.trozure.uk/demo')
+  t.mock.timers.tick(15000)
+  await assert.rejects(pending, /解析超时/)
 })
 
 test('corrupt, expired, or blocked storage never breaks conversion', () => {

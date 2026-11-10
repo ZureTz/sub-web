@@ -6,6 +6,7 @@ export const CONSTANTS = {
   BACKEND_RELEASE: import.meta.env.VITE_BACKEND_RELEASE,
   DEFAULT_BACKEND: import.meta.env.VITE_SUBCONVERTER_DEFAULT_BACKEND + '/sub?',
   SHORT_URL_API: import.meta.env.VITE_MYURLS_API,
+  URL_RESOLVE_API: import.meta.env.VITE_URL_RESOLVE_API || '/api/resolve',
   CONFIG_UPLOAD_API: import.meta.env.VITE_CONFIG_UPLOAD_API,
   BOT_LINK: import.meta.env.VITE_BOT_LINK,
   DEFAULT_CLIENT_TYPE: 'clash',

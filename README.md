@@ -17,7 +17,7 @@
 - Lucide 图标、深浅主题、响应式双栏布局
 - 基础 / 进阶模式，16 种客户端与可折叠高级参数
 - 本地存储缓存，TTL 可配置
-- 短链接与配置文件上传集成
+- 短链接生成、直接解析恢复配置与配置文件上传集成
 - 一键导入 Clash
 - Docker 一键部署
 
@@ -84,6 +84,9 @@ VITE_SUBCONVERTER_DOC_ADVANCED=https://github.com/tindy2013/subconverter/blob/ma
 # 短链接后端
 VITE_MYURLS_API=https://suosuo.de/short
 
+# 短链接解析接口（默认使用本站的 Cloudflare Pages Function）
+VITE_URL_RESOLVE_API=/api/resolve
+
 # 配置文件托管后端
 VITE_CONFIG_UPLOAD_API=https://oss.wcc.best/upload
 
@@ -133,7 +136,24 @@ node --test --test-name-pattern="advanced parameters" tests/subscriptions.test.m
 
 本地开发、CI 和 Docker 统一使用 Bun，仅维护 `bun.lock`。修改依赖后运行 `bun install` 并提交锁文件；CI 使用 `bun install --frozen-lockfile`。升级 Bun 时同步修改 `package.json` 的 `packageManager` / `engines.bun` 和 Docker 基础镜像版本。
 
-短链接、上传和短链解析依赖所配置的外部服务。Vite 不自带 `/api/short` 接口，本地调试可在 `.env.local` 中将 `VITE_MYURLS_API` 指向支持跨域的服务；生产环境也可以使用原有反向代理。
+短链接生成和上传依赖所配置的外部服务。Vite 不自带 `/api/short` 接口，本地调试可在 `.env.local` 中将 `VITE_MYURLS_API` 指向支持跨域的服务；生产环境也可以使用原有反向代理。
+
+### 从短链接恢复配置
+
+点击「从 URL 解析」，直接粘贴本站生成的短链接即可还原订阅、客户端、远程配置和高级参数，无需先打开短链接。长链接仍在浏览器本地解析。
+
+短链接通过同源 `POST /api/resolve` 解析，由 `functions/api/resolve.js` 提供。Cloudflare Pages 会随项目部署此 Function，无需另建服务器。它只读取 HTTP 跳转的 `Location`，拿到包含 `target` 和 `url` 的转换链接后立即返回，不访问最终订阅后端，因此不依赖短链服务或转换后端的跨域响应头。
+
+默认允许 `https://short.trozure.uk` 和 `http://short.trozure.uk`，与项目现有 `/api/short` 使用的短链服务一致。如使用其他短链域名，在 **Cloudflare Pages 的运行时环境变量** 中设置 `VITE_SHORT_URL_ALLOWED_ORIGINS`（逗号分隔的完整 origin，例如 `https://links.example.com,https://short.example.com`），然后重新部署。此变量替换默认允许列表，只应填写你信任的短链服务；每次中间跳转也必须在允许列表中。解析最多请求 5 次，总超时 10 秒，响应不缓存，失败时保留当前表单。
+
+本地 `bun run dev` / `bun run preview` 只运行 Vite，不执行 Pages Functions。需要联调短链解析时，使用部署中已有的 Wrangler 工具：
+
+```bash
+bun run build
+bunx wrangler pages dev dist
+```
+
+如需自定义本地允许列表，可给上面的命令追加 `--binding VITE_SHORT_URL_ALLOWED_ORIGINS=https://links.example.com`。Docker/Nginx 纯静态部署也需要将 `/api/resolve` 反向代理到已部署的 Pages Function；仅发布 `dist/` 不会包含此接口。
 
 ## CI 检查
 

@@ -79,7 +79,7 @@ Returns plain object merged into `data()` via spread. Form fields include: `sour
 `makeUrl(form, advanced, processedSubUrl, currentBackend, customParams, needUdp)` — returns empty string on validation failure, otherwise builds full query string. Advanced mode adds remote config, include/exclude, filename, UDP, template, and custom params.
 
 ### `src/composables/useUrlParser.js`
-`analyzeUrl(url)` — delegates HTTP(S) validation and short-link resolution to `UrlResolveService`; direct links must contain the `target` query parameter. Short links require CORS support.
+`analyzeUrl(url)` — delegates HTTP(S) validation and short-link resolution to `UrlResolveService`; direct links with `target` stay local. Short links use `POST /api/resolve` (Cloudflare Pages Function), which reads redirects without fetching the final conversion URL or requiring upstream CORS. The runtime `VITE_SHORT_URL_ALLOWED_ORIGINS` binding overrides the trusted short-link origins; default is HTTP(S) `short.trozure.uk`. Vite alone does not run this Function; use `bunx wrangler pages dev dist` after building to test it locally.
 `parseUrl(url, form, customParams, onSuccess, onError)` — parses all query params back into form fields; unknown params become `customParams` entries.
 
 ### `src/services/`
